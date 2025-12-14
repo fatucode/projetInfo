@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+set -o errexit
+set -o pipefail
+# strict mode but we'll trap and print friendly errors
+trap 'rc=$?; if [ $rc -ne 0 ]; then echo "ERROR: script failed (code $rc)"; fi; exit $rc' EXIT
+
+# Configuration (modifiez si nécessaire)
+EXECUTABLE="./wildwater"         # nom de l'exécutable C attendu
+MAKE_CMD="make"
+LEAKS_HISTORY="leaks_per_plant.dat"
+PLOTS_DIR="plots"
+TESTS_DIR="tests"
+
+usage() {
+  cat <<EOF
+Usage:
+  $0 <datafile> histo <max|src|real|all>
+  $0 <datafile> leaks "<Facility ID>"
+
+Notes:
+  - <datafile> : chemin vers le CSV d'entrée (format attendu par le projet).
+  - histo all  : bonus mode producing vol_max/vol_captation/vol_traitement in one .dat (histo_all.dat).
+  - The script expects the C executable '${EXECUTABLE}' to produce:
+      vol_max.dat        (for 'histo max')
+      vol_captation.dat  (for 'histo src')
+      vol_traitement.dat (for 'histo real')
+      histo_all.dat      (for 'histo all')
+    If your C program writes different filenames, update this script or adapt the C program.
+EOF
+  exit 2
+}
+
+# Minimal args validation
+if [ $# -lt 3 ]; then
+  echo "ERROR: not enough arguments."
+  usage
+fi
+
+DATAFILE="$1"
+CMD="$2"
+ARG3="$3"
+
+# validate data file
+if [ ! -f "$DATAFILE" ]; then
+  echo "ERROR: data file '$DATAFILE' not found."
+  exit 3
+fi
+
+# check for extra unexpected arguments
+# allowed patterns:
+#   myScript.sh data histo type
+#   myScript.sh data leaks "ID"
+if [ "$CMD" = "histo" ]; then
+  if [ "$#" -ne 3 ]; then
+    echo "ERROR: 'histo' requires exactly one option (max|src|real|all)."
+    usage
+  fi
+  case "$ARG3" in
+    max|src|real|all) ;;
+    *)
+      echo "ERROR: unknown histo type '$ARG3'. Use max|src|real|all."
+      exit 4
+      ;;
+  esac
+elif [ "$CMD" = "leaks" ]; then
+  # ID may contain spaces; script was called with quotes in examples
+  if [ "$#" -ne 3 ]; then
+    echo "ERROR: 'leaks' requires exactly one factory identifier argument (quoted if contains spaces)."
+    usage
+  fi
+else
+  echo "ERROR: unknown command '$CMD' (must be 'histo' or 'leaks')."
+  usage
+fi
+
+# ensure executable exists; otherwise try to build it via make
+if [ ! -x "$EXECUTABLE" ]; then
+  echo "Executable '${EXECUTABLE}' not found or not executable. Attempting to run '${MAKE_CMD}'..."
+  if ! command -v $MAKE_CMD >/dev/null 2>&1; then
+    echo "ERROR: '${MAKE_CMD}' not available on this system."
+    exit 5
+  fi
+  $MAKE_CMD
+  if [ ! -x "$EXECUTABLE" ]; then
+    echo "ERROR: build succeeded but '${EXECUTABLE}' not found/executable."
+    exit 6
+  fi
+fi
+
+# start timer (millisecond precision, try GNU date else fallback to python)
+get_ms_now() {
+  if date +%s%3N >/dev/null 2>&1; then
+    date +%s%3N
+  else
+    # fallback: python
+    python - <<'PY' 
+import time
+print(int(time.time()*1000))
+PY
+  fi
+}
+
+start_ms=$(get_ms_now)
+
+# dispatch
+if [ "$CMD" = "histo" ]; then
+  MODE="$ARG3"
+  echo "Running histogram generation (mode=$MODE) on '$DATAFILE'..."
+
+  # call C program: chosen API: ./wildwater histo <mode> <inputfile>
+  # - C must create the appropriate output file as documented.
+  if ! "$EXECUTABLE" histo "$MODE" "$DATAFILE"; then
+    echo "ERROR: C program returned non-zero for histo."
+    exit 7
+  fi
+
+  # map mode to expected filename
+  case "$MODE" in
+    max) OUTFILE="vol_max.dat" ;;
+    src) OUTFILE="vol_captation.dat" ;;
+    real) OUTFILE="vol_traitement.dat" ;;
+    all) OUTFILE="histo_all.dat" ;;
+  esac
+
+  if [ ! -f "$OUTFILE" ]; then
+    echo "ERROR: expected output file '$OUTFILE' not produced by C program."
+    exit 8
+  fi
+
+  # Ensure output header and format (basic validation)
+  head -n1 "$OUTFILE" | grep -q "identifier" || echo "Warning: output file header doesn't contain 'identifier' (check C output format)."
+
+  # Create plots directory
+  mkdir -p "$PLOTS_DIR"
+
+  # Produce bottoms/top plots if gnuplot present and plot scripts exist
+  if command -v gnuplot >/dev/null 2>&1 && [ -f "plot_bottom50.gp" ] && [ -f "plot_top10.gp" ]; then
+    # prepare bottom50 and top10 extracts (assume file has header)
+    tail -n +2 "$OUTFILE" | sort -t';' -k2 -n > "$PLOTS_DIR/unsorted.dat"
+    head -n 50 "$PLOTS_DIR/unsorted.dat" > "$PLOTS_DIR/bottom50.dat" || true
+    tail -n 10 "$PLOTS_DIR/unsorted.dat" > "$PLOTS_DIR/top10.dat" || true
+    gnuplot -c plot_bottom50.gp "$PLOTS_DIR/bottom50.dat" "$PLOTS_DIR/histo_all_low.png"
+    gnuplot -c plot_top10.gp "$PLOTS_DIR/top10.dat" "$PLOTS_DIR/histo_all_high.png"
+    echo "Plots generated in $PLOTS_DIR/"
+  else
+    echo "Note: gnuplot or plot scripts missing; skipping PNG generation."
+    echo "If you want PNGs, install gnuplot and add 'plot_bottom50.gp' and 'plot_top10.gp' in repo."
+  fi
+
+  echo "Histogram processing complete. Output: $OUTFILE"
+
+elif [ "$CMD" = "leaks" ]; then
+  ID="$ARG3"
+  echo "Running leaks calculation for '$ID' on '$DATAFILE'..."
+
+  # call C program: ./wildwater leaks "<ID>" <inputfile>
+  # we'll capture stdout in case C prints the value, and also check for a file 'leaks_out.dat'
+  LEAK_TMP="leaks_tmp.out"
+  if ! "$EXECUTABLE" leaks "$ID" "$DATAFILE" > "$LEAK_TMP" ; then
+    echo "ERROR: C program returned non-zero for leaks."
+    # but still check tmp output for -1 output semantics
+    if [ -s "$LEAK_TMP" ]; then
+      cat "$LEAK_TMP"
+    fi
+    exit 9
+  fi
+
+  # decide on leak value
+  # prefer if C printed a numeric value on stdout
+  LEAK_VALUE=$(awk 'NR==1{print $0; exit}' "$LEAK_TMP" | tr -d '\r\n')
+  # sanity: if it's not numeric and not -1, try to find file leaks_out.dat
+  if ! echo "$LEAK_VALUE" | grep -Eq '^[-]?[0-9]+([.][0-9]+)?$'; then
+    if [ -f "leaks_out.dat" ]; then
+      LEAK_VALUE=$(head -n1 leaks_out.dat)
+    else
+      echo "ERROR: could not parse leak value from program output."
+      echo "Program stdout:"
+      sed -n '1,20p' "$LEAK_TMP"
+      exit 10
+    fi
+  fi
+
+  # append to history file with timestamp
+  TIMESTAMP=$(date --iso-8601=seconds 2>/dev/null || date +"%Y-%m-%dT%H:%M:%S")
+  mkdir -p "$(dirname "$LEAKS_HISTORY")" 2>/dev/null || true
+  echo "${ID};${LEAK_VALUE};${TIMESTAMP}" >> "$LEAKS_HISTORY"
+  echo "Leak result recorded in $LEAKS_HISTORY : ${ID};${LEAK_VALUE}"
+
+else
+  echo "ERROR: unreachable branch."
+  exit 99
+fi
+
+end_ms=$(get_ms_now)
+elapsed_ms=$((end_ms - start_ms))
+echo "Total time: ${elapsed_ms} ms"
+
+# normal exit
+trap - EXIT
+exit 0
