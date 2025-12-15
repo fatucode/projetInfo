@@ -1,58 +1,54 @@
 #!/usr/bin/env bash
 
 BIN=wildwater
-MAKEFILE=Makefile
 
 usage() {
     echo "Usage:"
-    echo "  $0 <csv_file> histo <max|src|real|all>"
-    echo "  $0 <csv_file> leaks <plant_id>"
+    echo "  $0 <csv_file> histo <max|src|real>"
     exit 1
 }
 
-[ $# -lt 3 ] && usage
+[ $# -ne 3 ] && usage
 
 CSV="$1"
-MODE="$2"
-ARG="$3"
+CMD="$2"
+TYPE="$3"
 
 [ ! -f "$CSV" ] && echo "CSV file not found" && exit 1
 
 if [ ! -x "$BIN" ]; then
-    echo "Compiling C program..."
     make || exit 1
 fi
 
 START=$(date +%s%N)
 
-case "$MODE" in
+case "$CMD" in
     histo)
-        case "$ARG" in
-            max|src|real|all)
-                echo "Running histogram ($ARG)..."
-                ./"$BIN" "$CSV" histo "$ARG" || exit 1
-                if [ "$ARG" = "all" ]; then
-                    echo "Generating plots..."
-                    gnuplot histo_low.gp
-                    gnuplot histo_high.gp
-                fi
+        case "$TYPE" in
+            max|src|real)
+                ./"$BIN" "$CSV" histo "$TYPE" || exit 1
                 ;;
             *)
                 usage
                 ;;
         esac
         ;;
-    leaks)
-        echo "Running leaks calculation for plant:"
-        echo "$ARG"
-        ./"$BIN" "$CSV" leaks "$ARG" || exit 1
-        ;;
     *)
         usage
         ;;
 esac
 
-END=$(date +%s%N)
-ELAPSED=$(( (END - START) / 1000000 ))
+case "$TYPE" in
+    max)
+        gnuplot -c plot_max.gp histo_max.dat histo_max.png
+        ;;
+    src)
+        gnuplot -c plot_src.gp histo_src.dat histo_src.png
+        ;;
+    real)
+        gnuplot -c plot_real.gp histo_real.dat histo_real.png
+        ;;
+esac
 
-echo "Execution time: ${ELAPSED} ms"
+END=$(date +%s%N)
+echo "Execution time: $(( (END-START)/1000000 )) ms"
