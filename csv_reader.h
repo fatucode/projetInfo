@@ -1,7 +1,7 @@
-#include <stdio.h>
-#ifndef CSV_READER_H 
-#define CSV_READER_H
 
+#ifndef CSV_READER_H
+#define CSV_READER_H
+#include <stdio.h>
 
 typedef void (*csv_line_cb)(const char* col1, const char* amont, const char* aval,
                             const char* volume, const char* fuite, void* user_data);
