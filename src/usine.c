@@ -9,7 +9,9 @@ Usine* creer_usine(const char* id, double max, double src, double real) {
         return NULL;
     }
 
-    strcpy(u->id, id);
+    strncpy(u->id, id, sizeof(u->id) - 1);
+u->id[sizeof(u->id) - 1] = '\0';
+
     u->max = max;
     u->src = src;
     u->real = real;
