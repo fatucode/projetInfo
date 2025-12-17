@@ -1,0 +1,20 @@
+#include "reseaau.h"
+#include "calcul_fuites.h"
+#include "avl.h"
+
+int main() {
+    AVLNode* root = charger_reseau("c-wildwater_v0.csv");
+
+    AVLNode* usine = avl_search(root, "Facility complex #RH400057F");
+
+    if (!usine) {
+        printf("Usine introuvable\n");
+        return 0;
+    }
+
+    double pertes = calculer_fuites(usine->ptr_noeud);
+
+    printf("Pertes totales = %.3f Mm3\n", pertes);
+
+    return 0;
+}
