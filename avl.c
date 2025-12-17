@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "avl.h"
-#include "reseau.h"
+#include "reseaau.h"
 #define MAX_ID 100
 // ------------------------------------
 // Hauteur d’un nœud
@@ -126,5 +126,11 @@ AVLNode* avl_insert(AVLNode* root, const char* id, Noeud* ptr_noeud) {
     }
 
     return root;
+}
+void free_avl(AVLNode* root) {
+    if (!root) return;
+    free_avl(root->left);
+    free_avl(root->right);
+    free(root);
 }
 
