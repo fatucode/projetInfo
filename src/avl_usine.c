@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "avl_usine.h"
+static int facteur_equilibre(AvlUsine* n);
+static AvlUsine* rotation_gauche(AvlUsine* x);
+static AvlUsine* rotation_droite(AvlUsine* y);
+
 
 // Hauteur d'un noeud
 static int hauteur(AvlUsine* n) {
