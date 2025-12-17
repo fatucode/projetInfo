@@ -1,8 +1,6 @@
 #ifndef AVL_H
 #define AVL_H
-
-#include "reseau.h"
-#define MAX_ID 50
+#include "reseaau.h"
 
 typedef struct AVLNode {
     char id[MAX_ID];
@@ -24,6 +22,6 @@ AVLNode* avl_insert(AVLNode* root, const char* id, Noeud* ptr_noeud);
 AVLNode* rotate_left(AVLNode* x);
 AVLNode* rotate_right(AVLNode* y);
 int get_balance(AVLNode* n);
+void free_avl(AVLNode* root);
 
 #endif
-
