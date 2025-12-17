@@ -42,7 +42,8 @@ void traiter_ligne_csv(const char* col1,
     }
 
     // Insertion dans l'AVL
-    *racine = inserer_avl_usine(*racine, u);
+    *racine = inserer_usine(*racine, u);
+
 }
 
 
