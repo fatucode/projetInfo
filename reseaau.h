@@ -7,13 +7,14 @@ struct Noeud;
 struct AVLNode;
 typedef struct AVLNode AVLNode;
 typedef enum {
-    SOURCE,
-    USINE,
-    STOCKAGE,
-    JONCTION,
-    RACCORDEMENT,
-    USAGER
-} TypeNoeud;
+    SOURCE_USINE,
+    USINE_NOEUD,
+    USINE_STOCKAGE,
+    STOCKAGE_JONCTION,
+    JONCTION_USAGER,
+    TRONCON_DISTRIBUTION;
+    INCONNU
+} TypeLigne;
 
 typedef struct Noeud Noeud;
 
