@@ -29,6 +29,9 @@ void ajouter_enfant(Noeud* parent, Noeud* enfant) {
     if (!parent || !enfant) return;
 
     ChildNode* c = malloc(sizeof(ChildNode));
+    if(c==NULL){
+        return;
+    }
     c->enfant = enfant;
     c->suivant = parent->enfants;
     parent->enfants = c;
