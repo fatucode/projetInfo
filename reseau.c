@@ -38,51 +38,52 @@ void ajouter_enfant(Noeud* parent, Noeud* enfant) {
 }
 
 // --------------------------------------------------------
-// Détecter le type d’un nœud selon son contenu (nom)
+// Détecter le type d’une ligen dans le csv 
 // --------------------------------------------------------
-TypeNoeud detecter_type(const char* id, int role) {
+TypeLigne detecter_type_ligne(
+    const char* c1,
+    const char* c2,
+    const char* c3,
+    const char* c4,
+    const char* c5
+) {
+    // Sécurité
+    if (!c2) return INCONNU;
 
-    if (!id || strcmp(id, "-") == 0)
-        return -1;
+    // SOURCE -> USINE (captage)
+    if (strcmp(c1, "-") == 0 &&
+        strcmp(c3, "-") != 0 &&
+        strcmp(c4, "-") != 0 &&
+        strcmp(c5, "-") != 0)
+        return SOURCE_USINE;
 
-    // AMONT
-    if (role == 1) {
-        if (strstr(id, "Spring") || strstr(id, "Well"))
-            return SOURCE;
+    // USINE seule (capacité)
+    if (strcmp(c1, "-") == 0 &&
+        strcmp(c3, "-") == 0 &&
+        strcmp(c4, "-") != 0)
+        return USINE_NOEUD;
 
-        if (strstr(id, "Facility complex"))
-            return USINE;
+    // USINE -> STOCKAGE
+    if (strcmp(c1, "-") == 0 &&
+        strcmp(c3, "-") != 0 &&
+        strcmp(c4, "-") == 0 &&
+        strcmp(c5, "-") != 0)
+        return USINE_STOCKAGE;
 
-        if (strstr(id, "Storage"))
-            return STOCKAGE;
+    // MONDE 2 : DISTRIBUTION
+    // STOCKAGE -> JONCTION
+    // JONCTION -> RACCORDEMENT
+    // RACCORDEMENT -> USAGER
+    if (strcmp(c1, "-") != 0 &&
+        strcmp(c3, "-") != 0 &&
+        strcmp(c4, "-") == 0 &&
+        strcmp(c5, "-") != 0)
+        return TRONCON_DISTRIBUTION;
 
-        if (strstr(id, "Junction"))
-            return JONCTION;
-
-        if (strstr(id, "Service"))
-            return RACCORDEMENT;
-    }
-
-    // AVAL
-    if (role == 2) {
-        if (strstr(id, "Facility complex"))
-            return USINE;
-
-        if (strstr(id, "Storage"))
-            return STOCKAGE;
-
-        if (strstr(id, "Junction"))
-            return JONCTION;
-
-        if (strstr(id, "Service"))
-            return RACCORDEMENT;
-
-        if (strstr(id, "Cust"))
-            return USAGER;
-    }
-
-    return JONCTION;
+    return INCONNU;
 }
+
+
 
 // --------------------------------------------------------
 // Construction du réseau complet depuis le CSV
