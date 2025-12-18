@@ -7,8 +7,9 @@
 
 // Calcul récursif interne 
 double parcourir(Noeud* n, double volume_entree);
- #endif
+
 // Lance le calcul à partir d’une usine racine 
 double calculer_fuites_usine(AVLNode* racine, const char* id_usine);
 void sauvegarder_fuites(const char* id_usine, double pertes);
 
+ #endif
