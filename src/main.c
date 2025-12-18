@@ -2,66 +2,57 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "usine.h"
+#include "csv_reader.h"
 #include "avl_usine.h"
 #include "histogramme.h"
-#include "csv_reader.h"
 
-
-// appelée pour chaque ligne du CSV
-void traiter_ligne_csv(const char* col1,
-                       const char* amont,
-                       const char* aval,
-                       const char* vol,
-                       const char* fuite,
-                       void* data)
+static void traiter_ligne(const char* c1,
+                          const char* amont,
+                          const char* aval,
+                          const char* vol,
+                          const char* fuite,
+                          void* data)
 {
-    AvlUsine** racine = (AvlUsine**) data;
+    AvlUsine** racine = data;
 
-    // Si pas d'usine aval, on ignore la ligne
-    if (strcmp(aval, "-") == 0) {
+    if (!strstr(aval, "Plant") && !strstr(aval, "Facility complex"))
         return;
+
+    Usine* u = chercher_usine(*racine, aval);
+    if (!u) {
+        u = creer_usine(aval);
+        *racine = inserer_usine(*racine, u);
     }
 
-    // Conversion des valeurs
-    double max = atof(vol);
-    double src = max;
-    double real = max;
+    double volume = atof(vol);
+    double perte = (strcmp(fuite, "-") == 0) ? 0.0 : atof(fuite);
 
-    // Si fuite connue, on la retire
-    if (strcmp(fuite, "-") != 0) {
-        real = max - atof(fuite);
-    }
+    u->src += volume;
+    u->real += volume * (1.0 - perte / 100.0);
 
-    // Création de l'usine
-    Usine* u = creer_usine(aval, max, src, real);
-
-    // Si échec, on ne fait rien
-    if (u == NULL) {
-        return;
-    }
-
-    // Insertion dans l'AVL
-    *racine = inserer_usine(*racine, u);
-
+    if (volume > u->max)
+        u->max = volume;
 }
 
-
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s fichier.csv\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s fichier.csv histo <max|src|real>\n", argv[0]);
         return 1;
     }
 
     AvlUsine* racine = NULL;
 
-    int res = csv_process_file(argv[1], traiter_ligne_csv, &racine);
-    if (res != 0) {
-        fprintf(stderr, "Erreur lecture CSV\n");
+    if (csv_process_file(argv[1], traiter_ligne, &racine) != 0) {
+        fprintf(stderr, "Erreur CSV\n");
         return 1;
     }
 
-    generer_histogramme(racine, "histo_test.csv", HISTO_MAX);
+    if (strcmp(argv[3], "max") == 0)
+        generer_histogramme(racine, "histo_max.dat", 0);
+    else if (strcmp(argv[3], "src") == 0)
+        generer_histogramme(racine, "histo_src.dat", 1);
+    else if (strcmp(argv[3], "real") == 0)
+        generer_histogramme(racine, "histo_real.dat", 2);
 
     liberer_avl_usine(racine);
     return 0;
