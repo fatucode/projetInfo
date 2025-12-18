@@ -2,26 +2,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include "avl_usine.h"
-static int facteur_equilibre(AvlUsine* n);
-static AvlUsine* rotation_gauche(AvlUsine* x);
-static AvlUsine* rotation_droite(AvlUsine* y);
-
 
 // Hauteur d'un noeud
-static int hauteur(AvlUsine* n) {
-    if (n == NULL) return 0;
+int hauteur(AvlUsine* n) {
+    if (n == NULL){
+        return 0;
+    }
     return n->hauteur;
 }
 
 // Maximum entre deux entiers
-static int max(int a, int b) {
+int max(int a, int b) {
     return (a > b) ? a : b;
 }
 
 // Créer un noeud AVL
 AvlUsine* creer_noeud_usine(Usine* u) {
     AvlUsine* n = malloc(sizeof(AvlUsine));
-    if (!n) return NULL;
+    if (n ==NULL) {
+        return NULL;
+    }
 
     n->usine = u;
     n->gauche = NULL;
@@ -31,7 +31,7 @@ AvlUsine* creer_noeud_usine(Usine* u) {
     return n;
 }
 // Comparer deux identifiants d'usine
-static int comparer_id(const char* a, const char* b) {
+int comparer_id(const char* a, const char* b) {
     return strcmp(a, b);
 }
 AvlUsine* inserer_usine(AvlUsine* racine, Usine* u) {
@@ -96,12 +96,14 @@ Usine* chercher_usine(AvlUsine* racine, const char* id) {
     }
 }
 // Facteur d'équilibre d'un noeud
-static int facteur_equilibre(AvlUsine* n) {
-    if (n == NULL) return 0;
+int facteur_equilibre(AvlUsine* n) {
+    if (n == NULL){
+        return 0;
+    }
     return hauteur(n->gauche) - hauteur(n->droite);
 }
 // Rotation droite
-static AvlUsine* rotation_droite(AvlUsine* y) {
+AvlUsine* rotation_droite(AvlUsine* y) {
     AvlUsine* x = y->gauche;
     AvlUsine* T2 = x->droite;
 
@@ -116,7 +118,7 @@ static AvlUsine* rotation_droite(AvlUsine* y) {
     return x;
 }
 // Rotation gauche
-static AvlUsine* rotation_gauche(AvlUsine* x) {
+AvlUsine* rotation_gauche(AvlUsine* x) {
     AvlUsine* y = x->droite;
     AvlUsine* T2 = y->gauche;
 
@@ -153,7 +155,9 @@ void parcours_inverse(AvlUsine* racine, FILE* out, int mode) {
 }
 
 void liberer_avl_usine(AvlUsine* racine) {
-    if (racine == NULL) return;
+    if (racine == NULL){
+        return;
+    }
 
     liberer_avl_usine(racine->gauche);
     liberer_avl_usine(racine->droite);
