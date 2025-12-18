@@ -9,8 +9,6 @@ typedef struct AvlUsine {
     struct AvlUsine* droite;   // Fils droit
 } AvlUsine;
 
-AvlUsine* creer_noeud_usine(Usine* u);
-
 AvlUsine* inserer_usine(AvlUsine* racine, Usine* u);
 
 Usine* chercher_usine(AvlUsine* racine, const char* id);
