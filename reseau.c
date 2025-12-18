@@ -3,6 +3,7 @@
 #include <string.h>
 #include "reseaau.h"
 #include "avl.h"
+#include "csv_reader.h"
 
 // --------------------------------------------------------
 // Création d’un nœud
@@ -29,16 +30,13 @@ void ajouter_enfant(Noeud* parent, Noeud* enfant) {
     if (!parent || !enfant) return;
 
     ChildNode* c = malloc(sizeof(ChildNode));
-    if(c==NULL){
-        return;
-    }
     c->enfant = enfant;
     c->suivant = parent->enfants;
     parent->enfants = c;
 }
 
 // --------------------------------------------------------
-// Détecter le type d’une ligen dans le csv 
+// Détecter le type d’un nœud selon son contenu (nom)
 // --------------------------------------------------------
 TypeLigne detecter_type_ligne(
     const char* c1,
@@ -83,74 +81,110 @@ TypeLigne detecter_type_ligne(
     return INCONNU;
 }
 
-
-
 // --------------------------------------------------------
 // Construction du réseau complet depuis le CSV
 // --------------------------------------------------------
-AVLNode* charger_reseau(const char* filename) {
 
-    FILE* f = fopen(filename, "r");
-    if (!f) {
-        printf("Erreur : impossible d'ouvrir %s\n", filename);
+void traiter_ligne_csv(const char* c1,
+                       const char* c2,
+                       const char* c3,
+                       const char* c4,
+                       const char* c5,
+                       void* user_data)
+{
+    AVLNode** racine = (AVLNode**) user_data;
+
+    // Détection du type de ligne
+    TypeLigne type_ligne = detecter_type_ligne((char*)c1, (char*)c2, (char*)c3, (char*)c4, (char*)c5);
+
+    const char *amont = c2;
+    const char *aval  = c3;
+    const char *volume = c4;
+    const char *fuite  = c5;
+
+
+    if (!amont || !aval || strcmp(amont, "-") == 0 || strcmp(aval, "-") == 0)
+        return;
+
+    // Déterminer le type de noeud selon le type de ligne et la position
+    TypeNoeud type_amont = NOEUD_INCONNU;
+    TypeNoeud type_aval  = NOEUD_INCONNU;
+
+    switch (type_ligne) {
+    case SOURCE_USINE:
+        type_amont = NOEUD_SOURCE;
+        type_aval  =  NOEUD_USINE;
+        break;
+    case USINE_NOEUD:
+        type_amont =  NOEUD_USINE;
+        type_aval  =  NOEUD_USINE; // noeud seul
+        break;
+    case USINE_STOCKAGE:
+        type_amont =  NOEUD_USINE;
+        type_aval  =  NOEUD_STOCKAGE;
+        break;
+    case STOCKAGE_JONCTION:
+        type_amont =  NOEUD_STOCKAGE;
+        type_aval  =  NOEUD_JONCTION;
+        break;
+    case JONCTION_USAGER:   // ici pour distribution secondaire / branchement
+        type_amont =  NOEUD_JONCTION;
+        type_aval  =  NOEUD_USAGER;
+        break;
+    case TRONCON_DISTRIBUTION: // ligne de distribution secondaire
+        type_amont =  NOEUD_RACCORDEMENT;
+        type_aval  =  NOEUD_USAGER;
+        break;
+    default:
+        type_amont = NOEUD_INCONNU;
+        type_aval  = NOEUD_INCONNU;
+        break;
+}
+
+    // Recherche ou création des noeuds
+    AVLNode* nA = avl_search(*racine, amont);
+    if (!nA) {
+        Noeud* na = creer_noeud(amont, type_amont);
+        *racine = avl_insert(*racine, amont, na);
+        nA = avl_search(*racine, amont);
+    }
+
+    AVLNode* nB = avl_search(*racine, aval);
+    if (!nB) {
+        Noeud* nb = creer_noeud(aval, type_aval);
+        *racine = avl_insert(*racine, aval, nb);
+        nB = avl_search(*racine, aval);
+    }
+
+    // Création du lien parent -> enfant
+    ajouter_enfant(nA->ptr_noeud, nB->ptr_noeud);
+
+    // Volume : uniquement pour Source → Usine ou Usine seule
+    if ((type_ligne == SOURCE_USINE || type_ligne == USINE_NOEUD) &&
+        volume && strcmp(volume, "-") != 0)
+    {
+        nB->ptr_noeud->volume = atof(volume);
+    }
+
+    // Fuite : pour toutes les lignes où elle est définie
+    if (fuite && strcmp(fuite, "-") != 0)
+        nB->ptr_noeud->fuite = atof(fuite);
+}
+
+AVLNode* charger_reseau(const char* filename)
+{
+    AVLNode* racine = NULL;
+
+    int statut = csv_process_file(filename, traiter_ligne_csv, &racine);
+    if (statut != 0) {
+        fprintf(stderr, "Erreur : impossible de lire le fichier '%s'\n", filename);
         return NULL;
     }
 
-    AVLNode* avl_root = NULL;
-    char ligne[256];
-
-    while (fgets(ligne, sizeof(ligne), f)) {
-    char col1[50], col2[50], col3[50], col4[50], col5[50];
-    char* volume = NULL;
-    char* fuite = NULL;
-
-    // Lecture des 5 colonnes
-    int n = sscanf(ligne, "%49[^;];%49[^;];%49[^;];%49[^;];%49[^\n]",
-                   col1, col2, col3, col4, col5);
-
-    if (n < 2) continue; // au moins amont et aval
-
-    char* amont = col2;
-    char* aval  = col3;
-    if (n >= 4) {
-         volume = col4;
-}
-    if (n == 5) {
-         fuite = col5;
-}
-
-    if (!amont || !aval) continue;
-
-    // Détecter types
-    TypeNoeud type_amont = detecter_type(amont, 1);
-    TypeNoeud type_aval  = detecter_type(aval, 2);
-
-    // Chercher/amont dans AVL
-    AVLNode* node_amont = avl_search(avl_root, amont);
-    if (!node_amont) {
-        Noeud* n = creer_noeud(amont, type_amont);
-        avl_root = avl_insert(avl_root, amont, n);
-        node_amont = avl_search(avl_root, amont);
+    if (!racine) {
+        fprintf(stderr, "Erreur : aucun noeud n'a été chargé depuis '%s'\n", filename);
+        return NULL;
     }
 
-    // Chercher/aval dans AVL
-    AVLNode* node_aval = avl_search(avl_root, aval);
-    if (!node_aval) {
-        Noeud* n = creer_noeud(aval, type_aval);
-        avl_root = avl_insert(avl_root, aval, n);
-        node_aval = avl_search(avl_root, aval);
-    }
-
-    // Ajouter enfant
-    ajouter_enfant(node_amont->ptr_noeud, node_aval->ptr_noeud);
-
-    // Volume / fuite
-    if (volume && strcmp(volume, "-") != 0)
-        node_aval->ptr_noeud->volume = atof(volume);
-    if (fuite && strcmp(fuite, "-") != 0)
-        node_aval->ptr_noeud->fuite = atof(fuite);
-}
-
-    fclose(f);
-    return avl_root;
+    return racine;
 }
