@@ -9,7 +9,7 @@ typedef struct {
 } Usine;
 
 
-Usine* creer_usine(const char* id, double max, double src, double real);
+Usine* creer_usine(const char* id);
 
 
 void afficher_usine(const Usine* u);
