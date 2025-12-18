@@ -12,9 +12,18 @@ typedef enum {
     USINE_STOCKAGE,
     STOCKAGE_JONCTION,
     JONCTION_USAGER,
-    TRONCON_DISTRIBUTION;
+    TRONCON_DISTRIBUTION,
     INCONNU
 } TypeLigne;
+typedef enum {
+    NOEUD_SOURCE,
+    NOEUD_USINE,
+    NOEUD_STOCKAGE,
+    NOEUD_JONCTION,
+    NOEUD_RACCORDEMENT,
+    NOEUD_USAGER,
+    NOEUD_INCONNU
+} TypeNoeud;
 
 typedef struct Noeud Noeud;
 
