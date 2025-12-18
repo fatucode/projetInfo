@@ -3,7 +3,7 @@
 #include <string.h>
 #include "usine.h"
 
-Usine* creer_usine(const char* id, double max, double src, double real) {
+Usine* creer_usine(const char* id) {
     Usine* u = malloc(sizeof(Usine));
     if (u == NULL) {
         return NULL;
@@ -12,9 +12,9 @@ Usine* creer_usine(const char* id, double max, double src, double real) {
     strncpy(u->id, id, sizeof(u->id) - 1);
 u->id[sizeof(u->id) - 1] = '\0';
 
-    u->max = max;
-    u->src = src;
-    u->real = real;
+    u->max = 0.0;
+    u->src = 0.0;
+    u->real = 0.0;
 
     return u;
 }
