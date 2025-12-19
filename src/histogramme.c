@@ -34,4 +34,3 @@ int generer_histogramme(AvlUsine* racine,
     fclose(out);
     return 0;
 }
-
