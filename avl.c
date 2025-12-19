@@ -2,135 +2,94 @@
 #include <stdlib.h>
 #include <string.h>
 #include "avl.h"
-#include "reseaau.h"
-#define MAX_ID 100
-// ------------------------------------
-// Hauteur d’un nœud
-// ------------------------------------
-int height(AVLNode* n) {
-    return (n == NULL) ? 0 : n->height;
-}
 
-// ------------------------------------
-// Maximum de deux valeurs
-// ------------------------------------
-int max(int a, int b) {
+// 1. On définit max_int ici pour qu'il soit disponible
+static int max_int(int a, int b) {
     return (a > b) ? a : b;
 }
 
-// ------------------------------------
-// Rotation droite
-// ------------------------------------
-AVLNode* rotate_right(AVLNode* y) {
-    AVLNode* x = y->left;
-    AVLNode* T2 = x->right;
+// 2. Fonctions de hauteur et équilibre
+int hauteur_avl(AVLNode* n) {
+    return (n == NULL) ? 0 : n->hauteur;
+}
 
-    // rotation
-    x->right = y;
-    y->left = T2;
+int facteur_equilibre_avl(AVLNode* n) {
+    return (n == NULL) ? 0 : hauteur_avl(n->gauche) - hauteur_avl(n->droite);
+}
 
-    // Mise à jour des hauteurs
-    y->height = max(height(y->left), height(y->right)) + 1;
-    x->height  = max(height(x->left), height(x->right)) + 1;
+// 3. Création (COPIE de la chaîne obligatoire)
+AVLNode* creer_noeud_avl(const char* id, void* ptr_noeud) {
+    AVLNode* n = malloc(sizeof(AVLNode));
+    if (!n) return NULL;
 
+    // COPIE de la chaîne (on n'utilise pas =)
+    // Si ta struct a un "char id[100]", on utilise strcpy
+    // Si ta struct a un "char* id", on utilise strdup
+    strncpy(n->id, id, sizeof(n->id) - 1);
+    n->id[sizeof(n->id) - 1] = '\0'; 
+
+    n->ptr_noeud = ptr_noeud;
+    n->gauche = n->droite = NULL;
+    n->hauteur = 1;
+    return n;
+}
+
+// 4. Rotations (Noms propres au réseau)
+AVLNode* rotation_droite_avl(AVLNode* y) {
+    AVLNode* x = y->gauche;
+    AVLNode* T2 = x->droite;
+    x->droite = y;
+    y->gauche = T2;
+    y->hauteur = 1 + max_int(hauteur_avl(y->gauche), hauteur_avl(y->droite));
+    x->hauteur = 1 + max_int(hauteur_avl(x->gauche), hauteur_avl(x->droite));
     return x;
 }
 
-// ------------------------------------
-// Rotation gauche
-// ------------------------------------
-AVLNode* rotate_left(AVLNode* x) {
-    AVLNode* y = x->right;
-    AVLNode* T2 = y->left;
-
-    // rotation
-    y->left = x;
-    x->right = T2;
-
-    // Mise à jour des hauteurs
-    x->height = max(height(x->left), height(x->right)) + 1;
-    y->height  = max(height(y->left), height(y->right)) + 1;
-
+AVLNode* rotation_gauche_avl(AVLNode* x) {
+    AVLNode* y = x->droite;
+    AVLNode* T2 = y->gauche;
+    y->gauche = x;
+    x->droite = T2;
+    x->hauteur = 1 + max_int(hauteur_avl(x->gauche), hauteur_avl(x->droite));
+    y->hauteur = 1 + max_int(hauteur_avl(y->gauche), hauteur_avl(y->droite));
     return y;
 }
 
-// ------------------------------------
-// Facteur d’équilibre
-// ------------------------------------
-int get_balance(AVLNode* n) {
-    if (n == NULL) return 0;
-    return height(n->left) - height(n->right);
-}
+// 5. Insertion (Utilisation de STRCMP pour les chaînes)
+AVLNode* inserer_noeud_avl(AVLNode* racine, const char* id, void* ptr_noeud) {
+    if (racine == NULL) return creer_noeud_avl(id, ptr_noeud);
 
-// ------------------------------------
-// Recherche dans l’AVL
-// ------------------------------------
-AVLNode* avl_search(AVLNode* root, const char* id) {
-    if (!root) return NULL;
-
-    int cmp = strcmp(id, root->id);
-
-    if (cmp == 0) return root;
-    else if (cmp < 0) return avl_search(root->left, id);
-    else return avl_search(root->right, id);
-}
-
-// ------------------------------------
-// Insertion dans l’AVL
-// ------------------------------------
-AVLNode* avl_insert(AVLNode* root, const char* id, Noeud* ptr_noeud) {
-
-    // 1) Insertion classique BST
-    if (root == NULL) {
-        AVLNode* node = malloc(sizeof(AVLNode));
-        strcpy(node->id, id);
-        node->ptr_noeud = ptr_noeud;
-        node->left = node->right = NULL;
-        node->height = 1;
-        return node;
-    }
-
-    int cmp = strcmp(id, root->id);
+    // COMPARAISON DE CHAINES
+    int cmp = strcmp(id, racine->id);
 
     if (cmp < 0)
-        root->left = avl_insert(root->left, id, ptr_noeud);
+        racine->gauche = inserer_noeud_avl(racine->gauche, id, ptr_noeud);
     else if (cmp > 0)
-        root->right = avl_insert(root->right, id, ptr_noeud);
+        racine->droite = inserer_noeud_avl(racine->droite, id, ptr_noeud);
     else
-        return root; // ID déjà présent → rien à faire
+        return racine;
 
-    // 2) Mise à jour de la hauteur
-    root->height = 1 + max(height(root->left), height(root->right));
+    racine->hauteur = 1 + max_int(hauteur_avl(racine->gauche), hauteur_avl(racine->droite));
+    int eq = facteur_equilibre_avl(racine);
 
-    // 3) Calcul du déséquilibre
-    int balance = get_balance(root);
-
-    // ---- Cas 1 : Left Left ----
-    if (balance > 1 && strcmp(id, root->left->id) < 0)
-        return rotate_right(root);
-
-    // ---- Cas 2 : Right Right ----
-    if (balance < -1 && strcmp(id, root->right->id) > 0)
-        return rotate_left(root);
-
-    // ---- Cas 3 : Left Right ----
-    if (balance > 1 && strcmp(id, root->left->id) > 0) {
-        root->left = rotate_left(root->left);
-        return rotate_right(root);
+    // ÉQUILIBRAGE avec strcmp
+    if (eq > 1 && strcmp(id, racine->gauche->id) < 0) return rotation_droite_avl(racine);
+    if (eq < -1 && strcmp(id, racine->droite->id) > 0) return rotation_gauche_avl(racine);
+    if (eq > 1 && strcmp(id, racine->gauche->id) > 0) {
+        racine->gauche = rotation_gauche_avl(racine->gauche);
+        return rotation_droite_avl(racine);
     }
-
-    // ---- Cas 4 : Right Left ----
-    if (balance < -1 && strcmp(id, root->right->id) < 0) {
-        root->right = rotate_right(root->right);
-        return rotate_left(root);
+    if (eq < -1 && strcmp(id, racine->droite->id) < 0) {
+        racine->droite = rotation_droite_avl(racine->droite);
+        return rotation_gauche_avl(racine);
     }
-
-    return root;
-}
-void free_avl(AVLNode* root) {
-    if (!root) return;
-    free_avl(root->left);
-    free_avl(root->right);
-    free(root);
+    return racine;
 }
 
+// 6. Libération
+void liberer_avl(AVLNode* racine) {
+    if (racine == NULL) return;
+    liberer_avl(racine->gauche);
+    liberer_avl(racine->droite);
+    free(racine);
+}
