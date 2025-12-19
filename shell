@@ -2,64 +2,58 @@
 
 # --- CONFIGURATION ---
 CSV_FILE=$1
-MODE=$2
-TYPE=$3 # max, src, ou real
+ACTION=$2
+PARAM=$3
 
-# --- VERIFICATIONS ---
-if [ $# -lt 3 ]; then
-    echo "Usage: $0 <fichier.csv> -h <max|src|real>"
-    echo "Ou:    $0 <fichier.csv> -l <id_usine>"
-    exit 1
-fi
+# Chronomètre (début) - Utilise date pour les millisecondes
+START_TIME=$(date +%s%3N)
 
-if [ ! -f "$CSV_FILE" ]; then
-    echo "Erreur : Le fichier $CSV_FILE est introuvable."
+# --- FONCTION ERREUR ---
+error_exit() {
+    echo "Erreur : $1"
+    # Affichage du temps même en cas d'erreur
+    END_TIME=$(date +%s%3N)
+    echo "Durée totale : $((END_TIME - START_TIME)) ms"
     exit 1
-fi
+}
+
+# --- VÉRIFICATIONS ARGUMENTS ---
+[ $# -ne 3 ] && error_exit "Nombre d'arguments incorrect. Usage: $0 <file> <histo|leaks> <param>"
+[ ! -f "$CSV_FILE" ] && error_exit "Fichier $CSV_FILE introuvable."
 
 # --- COMPILATION ---
-echo "Compilation en cours..."
-make > /dev/null
-if [ $? -ne 0 ]; then
-    echo "Erreur de compilation."
-    exit 1
+if [ ! -f "./wildwater" ]; then
+    make > /dev/null 2>&1 || error_exit "La compilation a échoué."
 fi
 
 # --- TRAITEMENT ---
-if [ "$MODE" == "-h" ]; then
-    echo "Analyse des données pour l'histogramme ($TYPE)..."
+if [ "$ACTION" == "histo" ]; then
+    # Vérification du sous-argument
+    [[ "$PARAM" != "max" && "$PARAM" != "src" && "$PARAM" != "real" ]] && error_exit "Valeur histo incorrecte (max|src|real)."
     
-    # 1. Exécution du programme C pour générer le fichier .dat global
-    ./wildwater "$CSV_FILE" -h "$TYPE"
-    
-    # Le fichier produit par ton C s'appelle par exemple : histo_max.dat
-    RAW_DATA="histo_${TYPE}.dat"
-    
-    if [ ! -f "$RAW_DATA" ]; then
-        echo "Erreur : Le programme C n'a pas généré $RAW_DATA"
-        exit 1
-    fi
+    # Appel C (on passe -h car ton code C attend probablement -h)
+    ./wildwater "$CSV_FILE" -h "$PARAM" > /dev/null
+    [ $? -ne 0 ] && error_exit "Le programme C a renvoyé une erreur."
 
-    # 2. Préparation des données pour GnuPlot
-    # On trie numériquement sur la colonne 2 (le volume)
-    # Top 10 : Tri décroissant (rn) et on prend les 10 premiers
-    grep -v "id" "$RAW_DATA" | sort -t';' -k2,2rn | head -n 10 > "top10_${TYPE}.temp"
+    # GnuPlot (Top 10 / Bottom 50)
+    RAW_DATA="histo_${PARAM}.dat"
+    grep -v "id" "$RAW_DATA" | sort -t';' -k2,2rn | head -n 10 > "top10_${PARAM}.temp"
+    grep -v "id" "$RAW_DATA" | sort -t';' -k2,2n | head -n 50 > "bottom50_${PARAM}.temp"
     
-    # Bottom 50 : Tri croissant (n) et on prend les 50 premiers
-    grep -v "id" "$RAW_DATA" | sort -t';' -k2,2n | head -n 50 > "bottom50_${TYPE}.temp"
-
-    # 3. Lancement de GnuPlot
-    echo "Génération des graphiques PNG..."
+    gnuplot -e "data_file='top10_${PARAM}.temp'; out_file='top10_${PARAM}.png'; main_title='Top 10 ($PARAM)'; unite='k.m3'" histo_config.gp
+    gnuplot -e "data_file='bottom50_${PARAM}.temp'; out_file='bottom50_${PARAM}.png'; main_title='Bottom 50 ($PARAM)'; unite='k.m3'" histo_config.gp
     
-    # On passe les noms de fichiers et titres en paramètres à GnuPlot
-    gnuplot -e "data_file='top10_${TYPE}.temp'; out_file='top10_${TYPE}.png'; main_title='Les 10 plus grandes usines ($TYPE)'; unite='M.m3'" histo_config.gp
-    gnuplot -e "data_file='bottom50_${TYPE}.temp'; out_file='bottom50_${TYPE}.png'; main_title='Les 50 plus petites usines ($TYPE)'; unite='M.m3'" histo_config.gp
+    rm -f *.temp
+    echo "Traitement histo $PARAM terminé."
 
-    # Nettoyage des fichiers temporaires
-    rm *.temp
-    echo "Terminé ! Voir top10_${TYPE}.png et bottom50_${TYPE}.png"
-
-elif [ "$MODE" == "-l" ]; then
-    echo "Calcul des fuites..."
-    ./wildwater "$CSV_FILE" -l "$TYPE"
+elif [ "$ACTION" == "leaks" ]; then
+    # Appel C pour les fuites
+    ./wildwater "$CSV_FILE" -l "$PARAM"
+    [ $? -ne 0 ] && error_exit "Erreur lors du calcul des fuites pour $PARAM."
+else
+    error_exit "Argument inconnu : $ACTION (attendu: histo ou leaks)."
 fi
+
+# --- CHRONO FIN ---
+END_TIME=$(date +%s%3N)
+echo "Durée totale : $((END_TIME - START_TIME)) ms"
