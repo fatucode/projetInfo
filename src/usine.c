@@ -28,4 +28,3 @@ void afficher_usine(const Usine* u) {
     printf("Usine %s | max=%.2f | src=%.2f | real=%.2f\n",
            u->id, u->max, u->src, u->real);
 }
-
