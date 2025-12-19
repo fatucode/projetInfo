@@ -1,54 +1,65 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-BIN=wildwater
+# --- CONFIGURATION ---
+CSV_FILE=$1
+MODE=$2
+TYPE=$3 # max, src, ou real
 
-usage() {
-    echo "Usage:"
-    echo "  $0 <csv_file> histo <max|src|real>"
+# --- VERIFICATIONS ---
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <fichier.csv> -h <max|src|real>"
+    echo "Ou:    $0 <fichier.csv> -l <id_usine>"
     exit 1
-}
-
-[ $# -ne 3 ] && usage
-
-CSV="$1"
-CMD="$2"
-TYPE="$3"
-
-[ ! -f "$CSV" ] && echo "CSV file not found" && exit 1
-
-if [ ! -x "$BIN" ]; then
-    make || exit 1
 fi
 
-START=$(date +%s%N)
+if [ ! -f "$CSV_FILE" ]; then
+    echo "Erreur : Le fichier $CSV_FILE est introuvable."
+    exit 1
+fi
 
-case "$CMD" in
-    histo)
-        case "$TYPE" in
-            max|src|real)
-                ./"$BIN" "$CSV" histo "$TYPE" || exit 1
-                ;;
-            *)
-                usage
-                ;;
-        esac
-        ;;
-    *)
-        usage
-        ;;
-esac
+# --- COMPILATION ---
+echo "Compilation en cours..."
+make > /dev/null
+if [ $? -ne 0 ]; then
+    echo "Erreur de compilation."
+    exit 1
+fi
 
-case "$TYPE" in
-    max)
-        gnuplot -c plot_max.gp histo_max.dat histo_max.png
-        ;;
-    src)
-        gnuplot -c plot_src.gp histo_src.dat histo_src.png
-        ;;
-    real)
-        gnuplot -c plot_real.gp histo_real.dat histo_real.png
-        ;;
-esac
+# --- TRAITEMENT ---
+if [ "$MODE" == "-h" ]; then
+    echo "Analyse des données pour l'histogramme ($TYPE)..."
+    
+    # 1. Exécution du programme C pour générer le fichier .dat global
+    ./wildwater "$CSV_FILE" -h "$TYPE"
+    
+    # Le fichier produit par ton C s'appelle par exemple : histo_max.dat
+    RAW_DATA="histo_${TYPE}.dat"
+    
+    if [ ! -f "$RAW_DATA" ]; then
+        echo "Erreur : Le programme C n'a pas généré $RAW_DATA"
+        exit 1
+    fi
 
-END=$(date +%s%N)
-echo "Execution time: $(( (END-START)/1000000 )) ms"
+    # 2. Préparation des données pour GnuPlot
+    # On trie numériquement sur la colonne 2 (le volume)
+    # Top 10 : Tri décroissant (rn) et on prend les 10 premiers
+    grep -v "id" "$RAW_DATA" | sort -t';' -k2,2rn | head -n 10 > "top10_${TYPE}.temp"
+    
+    # Bottom 50 : Tri croissant (n) et on prend les 50 premiers
+    grep -v "id" "$RAW_DATA" | sort -t';' -k2,2n | head -n 50 > "bottom50_${TYPE}.temp"
+
+    # 3. Lancement de GnuPlot
+    echo "Génération des graphiques PNG..."
+    
+    # On passe les noms de fichiers et titres en paramètres à GnuPlot
+    gnuplot -e "data_file='top10_${TYPE}.temp'; out_file='top10_${TYPE}.png'; main_title='Les 10 plus grandes usines ($TYPE)'; unite='M.m3'" histo_config.gp
+    gnuplot -e "data_file='bottom50_${TYPE}.temp'; out_file='bottom50_${TYPE}.png'; main_title='Les 50 plus petites usines ($TYPE)'; unite='M.m3'" histo_config.gp
+
+    # Nettoyage des fichiers temporaires
+    rm *.temp
+    echo "Terminé ! Voir top10_${TYPE}.png et bottom50_${TYPE}.png"
+
+elif [ "$MODE" == "-l" ]; then
+    echo "Calcul des fuites..."
+    ./wildwater "$CSV_FILE" -l "$TYPE"
+fi
