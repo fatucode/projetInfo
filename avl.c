@@ -85,6 +85,29 @@ AVLNode* inserer_noeud_avl(AVLNode* racine, const char* id, void* ptr_noeud) {
     }
     return racine;
 }
+// Pour reseau.c qui cherche "avl_recherche"
+AVLNode* avl_recherche(AVLNode* r, const char* id) {
+    if (r == NULL) return NULL;
+    int cmp = strcmp(id, r->id);
+    if (cmp == 0) return r;
+    if (cmp < 0) return avl_recherche(r->gauche, id);
+    return avl_recherche(r->droite, id);
+}
+
+// Pour reseau.c qui cherche "avl_insertion"
+AVLNode* avl_insertion(AVLNode* r, const char* id, void* ptr) {
+    return inserer_noeud_avl(r, id, ptr); 
+}
+
+// Pour calcul_fuites.c qui cherche "avl_search"
+AVLNode* avl_search(AVLNode* r, const char* id) {
+    return avl_recherche(r, id);
+}
+
+// Pour main.c qui cherche "avl_liberer" à la ligne 104
+void avl_liberer(AVLNode* r) {
+    liberer_avl(r);
+}
 
 // 6. Libération
 void liberer_avl(AVLNode* racine) {
