@@ -7,7 +7,7 @@ int hauteur_usine(AvlUsine* n) {
     return (n == NULL) ? 0 : n->hauteur;
 }
 
-static int max_int(int a, int b) {
+ int max_int(int a, int b) {
     return (a > b) ? a : b;
 }
 
@@ -73,4 +73,36 @@ void liberer_avl_usine(AvlUsine* racine) {
     liberer_avl_usine(racine->droite);
     if(racine->usine) free(racine->usine);
     free(racine);
+}
+// FONCTIONS À RAJOUTER DANS AVL_USINE.C 
+
+// Cette fonction est appelée par le main.c (traiter_ligne)
+Usine* chercher_usine(AvlUsine* racine, const char* id) {
+    if (racine == NULL) {
+        return NULL;
+    }
+    int cmp = strcmp(id, racine->usine->id);
+    if (cmp == 0) {
+        return racine->usine;
+    } else if (cmp < 0) {
+        return chercher_usine(racine->gauche, id);
+    } else {
+        return chercher_usine(racine->droite, id);
+    }
+}
+
+// Cette fonction est appelée par histogramme.c
+void parcours_inverse(AvlUsine* racine, FILE* out, int mode) {
+    if (racine == NULL) return;
+
+    // Droite, puis Racine, puis Gauche pour l'ordre décroissant
+    parcours_inverse(racine->droite, out, mode);
+
+    Usine* u = racine->usine;
+    if (mode == 0) fprintf(out, "%s;%.2f\n", u->id, u->max);
+    else if (mode == 1) fprintf(out, "%s;%.2f\n", u->id, u->src);
+    else if (mode == 2) fprintf(out, "%s;%.2f\n", u->id, u->real);
+    else fprintf(out, "%s;%.2f;%.2f;%.2f\n", u->id, u->max, u->src, u->real);
+
+    parcours_inverse(racine->gauche, out, mode);
 }
