@@ -1,0 +1,29 @@
+# Terminal PNG
+set terminal pngcairo size 1800,900 enhanced font "Arial,12"
+
+# Variables passées depuis le Shell
+# ARG1 = fichier CSV d'entrée
+# ARG2 = fichier PNG de sortie
+# ARG3 = titre de l'histogramme
+set output ARG2
+set title ARG3
+
+# Format CSV
+set datafile separator ";"
+set xlabel "Plant IDs"
+set ylabel "Volume (M.m3.year-1)"
+
+# Style histogramme
+set style data histograms
+set style fill solid 1.0 border -1
+set boxwidth 0.9
+set xtics rotate by -90 font ",8"
+set grid ytics
+
+# Vérifier que le fichier contient au moins une ligne de données
+stats ARG1 nooutput
+if (STATS_records == 0) {
+    print "Erreur : fichier vide ou introuvable : " . ARG1
+} else {
+    plot ARG1 using 2:xtic(1) title ARG3
+}
