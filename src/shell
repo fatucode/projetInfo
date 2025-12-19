@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# --- CONFIGURATION ---
+CSV_FILE=$1
+MODE=$2
+TYPE=$3 # max, src, ou real
+
+# --- VERIFICATIONS ---
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <fichier.csv> -h <max|src|real>"
+    echo "Ou:    $0 <fichier.csv> -l <id_usine>"
+    exit 1
+fi
+
+if [ ! -f "$CSV_FILE" ]; then
+    echo "Erreur : Le fichier $CSV_FILE est introuvable."
+    exit 1
+fi
+
+# --- COMPILATION ---
+echo "Compilation en cours..."
+make > /dev/null
+if [ $? -ne 0 ]; then
+    echo "Erreur de compilation."
+    exit 1
+fi
+
+# --- TRAITEMENT ---
+if [ "$MODE" == "-h" ]; then
+    echo "Analyse des données pour l'histogramme ($TYPE)..."
+    
+    # 1. Exécution du programme C pour générer le fichier .dat global
+    ./wildwater "$CSV_FILE" -h "$TYPE"
+    
+    # Le fichier produit par ton C s'appelle par exemple : histo_max.dat
+    RAW_DATA="histo_${TYPE}.dat"
+    
+    if [ ! -f "$RAW_DATA" ]; then
+        echo "Erreur : Le programme C n'a pas généré $RAW_DATA"
+        exit 1
+    fi
+
+    # 2. Préparation des données pour GnuPlot
+    # On trie numériquement sur la colonne 2 (le volume)
+    # Top 10 : Tri décroissant (rn) et on prend les 10 premiers
+    grep -v "id" "$RAW_DATA" | sort -t';' -k2,2rn | head -n 10 > "top10_${TYPE}.temp"
+    
+    # Bottom 50 : Tri croissant (n) et on prend les 50 premiers
+    grep -v "id" "$RAW_DATA" | sort -t';' -k2,2n | head -n 50 > "bottom50_${TYPE}.temp"
+
+    # 3. Lancement de GnuPlot
+    echo "Génération des graphiques PNG..."
+    
+    # On passe les noms de fichiers et titres en paramètres à GnuPlot
+    gnuplot -e "data_file='top10_${TYPE}.temp'; out_file='top10_${TYPE}.png'; main_title='Les 10 plus grandes usines ($TYPE)'; unite='M.m3'" histo_config.gp
+    gnuplot -e "data_file='bottom50_${TYPE}.temp'; out_file='bottom50_${TYPE}.png'; main_title='Les 50 plus petites usines ($TYPE)'; unite='M.m3'" histo_config.gp
+
+    # Nettoyage des fichiers temporaires
+    rm *.temp
+    echo "Terminé ! Voir top10_${TYPE}.png et bottom50_${TYPE}.png"
+
+elif [ "$MODE" == "-l" ]; then
+    echo "Calcul des fuites..."
+    ./wildwater "$CSV_FILE" -l "$TYPE"
+fi
