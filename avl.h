@@ -1,27 +1,42 @@
 #ifndef AVL_H
 #define AVL_H
+
 #include "reseaau.h"
 
+/* ----------------------------------------------------
+   Structure d’un nœud AVL
+---------------------------------------------------- */
 typedef struct AVLNode {
     char id[MAX_ID];
     Noeud* ptr_noeud;
-    struct AVLNode* left;
-    struct AVLNode* right;
-    int height;
+
+    struct AVLNode* gauche;
+    struct AVLNode* droite;
+
+    int hauteur;
 } AVLNode;
 
-// --- Fonctions générales ---
-int height(AVLNode* n);
+/* ----------------------------------------------------
+   Fonctions utilitaires
+---------------------------------------------------- */
+int hauteur(AVLNode* n);
 int max(int a, int b);
 
-// --- Recherche / insertion ---
-AVLNode* avl_search(AVLNode* root, const char* id);
-AVLNode* avl_insert(AVLNode* root, const char* id, Noeud* ptr_noeud);
+/* ----------------------------------------------------
+   Recherche / insertion
+---------------------------------------------------- */
+AVLNode* avl_recherche(AVLNode* racine, const char* id);
+AVLNode* inserer_noeud_avl(AVLNode* racine, const char* id, void* ptr_noeud);
 
-// --- Rotations ---
-AVLNode* rotate_left(AVLNode* x);
-AVLNode* rotate_right(AVLNode* y);
-int get_balance(AVLNode* n);
-void free_avl(AVLNode* root);
+/* ----------------------------------------------------
+   Rotations AVL
+---------------------------------------------------- */
+AVLNode* rotation_gauche(AVLNode* x);
+AVLNode* rotation_droite(AVLNode* y);
+int facteur_equilibre(AVLNode* n);
 
+/* ----------------------------------------------------
+   Libération mémoire
+---------------------------------------------------- */
+void liberer_avl(AVLNode* racine);
 #endif
