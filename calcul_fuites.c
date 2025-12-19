@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include "calcul_fuites.h"
 
