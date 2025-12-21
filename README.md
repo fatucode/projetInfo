@@ -30,6 +30,7 @@ Efficacité : L'AVL permet de maintenir une hauteur d'arbre minimale, garantissa
 Flux de données : Le script Shell effectue un premier tri, le programme C traite les données dans l'arbre, et Gnuplot assure la mise en image finale.
 
 5. Composition de l'équipe
+     
 Sarah : Développement C - Modules Histogrammes et logique AVL.
 
 Fatumata : Développement C - Algorithmes de rendement et calcul des fuites.
