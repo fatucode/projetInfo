@@ -3,115 +3,133 @@
 #include <string.h>
 #include "avl.h"
 
-// 1. On définit max_int ici pour qu'il soit disponible
-static int max_int(int a, int b) {
-    return (a > b) ? a : b;
-}
-
-// 2. Fonctions de hauteur et équilibre
-int hauteur_avl(AVLNode* n) {
+// Retourne la hauteur d’un nœud AVL
+// Si le nœud est NULL, la hauteur est 0
+int obtenir_hauteur(NoeudAVL* n) {
     return (n == NULL) ? 0 : n->hauteur;
 }
 
-int facteur_equilibre_avl(AVLNode* n) {
-    return (n == NULL) ? 0 : hauteur_avl(n->gauche) - hauteur_avl(n->droite);
+// Retourne la valeur maximale entre deux entiers
+int max_val(int a, int b) {
+    return (a > b) ? a : b;
 }
 
-// 3. Création (COPIE de la chaîne obligatoire)
-AVLNode* creer_noeud_avl(const char* id, void* ptr_noeud) {
-    AVLNode* n = malloc(sizeof(AVLNode));
-    if (!n) return NULL;
+// Rotation simple à droite (cas Gauche-Gauche)
+// Permet de rééquilibrer l’arbre AVL
+NoeudAVL* rotation_droite(NoeudAVL* y) {
+    NoeudAVL* x = y->gauche;
+    NoeudAVL* T2 = x->droite;
 
-    // COPIE de la chaîne (on n'utilise pas =)
-    // Si ta struct a un "char id[100]", on utilise strcpy
-    // Si ta struct a un "char* id", on utilise strdup
-    strncpy(n->id, id, sizeof(n->id) - 1);
-    n->id[sizeof(n->id) - 1] = '\0'; 
-
-    n->ptr_noeud = ptr_noeud;
-    n->gauche = n->droite = NULL;
-    n->hauteur = 1;
-    return n;
-}
-
-// 4. Rotations (Noms propres au réseau)
-AVLNode* rotation_droite_avl(AVLNode* y) {
-    AVLNode* x = y->gauche;
-    AVLNode* T2 = x->droite;
+    // Rotation
     x->droite = y;
     y->gauche = T2;
-    y->hauteur = 1 + max_int(hauteur_avl(y->gauche), hauteur_avl(y->droite));
-    x->hauteur = 1 + max_int(hauteur_avl(x->gauche), hauteur_avl(x->droite));
+
+    // Mise à jour des hauteurs
+    y->hauteur = max_val(obtenir_hauteur(y->gauche), obtenir_hauteur(y->droite)) + 1;
+    x->hauteur = max_val(obtenir_hauteur(x->gauche), obtenir_hauteur(x->droite)) + 1;
+
+    // Nouvelle racine du sous-arbre
     return x;
 }
 
-AVLNode* rotation_gauche_avl(AVLNode* x) {
-    AVLNode* y = x->droite;
-    AVLNode* T2 = y->gauche;
+// Rotation simple à gauche (cas Droite-Droite)
+// Permet de rééquilibrer l’arbre AVL
+NoeudAVL* rotation_gauche(NoeudAVL* x) {
+    NoeudAVL* y = x->droite;
+    NoeudAVL* T2 = y->gauche;
+
+    // Rotation
     y->gauche = x;
     x->droite = T2;
-    x->hauteur = 1 + max_int(hauteur_avl(x->gauche), hauteur_avl(x->droite));
-    y->hauteur = 1 + max_int(hauteur_avl(y->gauche), hauteur_avl(y->droite));
+
+    // Mise à jour des hauteurs
+    x->hauteur = max_val(obtenir_hauteur(x->gauche), obtenir_hauteur(x->droite)) + 1;
+    y->hauteur = max_val(obtenir_hauteur(y->gauche), obtenir_hauteur(y->droite)) + 1;
+
+    // Nouvelle racine du sous-arbre
     return y;
 }
 
-// 5. Insertion (Utilisation de STRCMP pour les chaînes)
-AVLNode* inserer_noeud_avl(AVLNode* racine, const char* id, void* ptr_noeud) {
-    if (racine == NULL) return creer_noeud_avl(id, ptr_noeud);
+// Calcule le facteur d’équilibre d’un nœud AVL
+// équilibre = hauteur(gauche) - hauteur(droite)
+int obtenir_equilibre(NoeudAVL* n) {
+    if (n == NULL) return 0;
+    return obtenir_hauteur(n->gauche) - obtenir_hauteur(n->droite);
+}
 
-    // COMPARAISON DE CHAINES
+// Recherche d’un nœud dans l’AVL à partir de son identifiant
+NoeudAVL* avl_recherche(NoeudAVL* racine, const char* id) {
+    if (!racine) return NULL;
+
     int cmp = strcmp(id, racine->id);
 
+    // Identifiant trouvé
+    if (cmp == 0) return racine;
+    // Recherche dans le sous-arbre gauche
+    else if (cmp < 0) return avl_recherche(racine->gauche, id);
+    // Recherche dans le sous-arbre droit
+    else return avl_recherche(racine->droite, id);
+}
+
+// Insertion d’un nœud dans l’arbre AVL
+// L’arbre est automatiquement rééquilibré après insertion
+NoeudAVL* avl_insertion(NoeudAVL* racine, const char* id, Noeud* ptr_noeud) {
+    // Cas de base : création d’un nouveau nœud
+    if (racine == NULL) {
+        NoeudAVL* node = malloc(sizeof(NoeudAVL));
+        strcpy(node->id, id);
+        node->ptr_noeud = ptr_noeud;
+        node->gauche = node->droite = NULL;
+        node->hauteur = 1;
+        return node;
+    }
+
+    // Insertion classique dans un arbre binaire de recherche
+    int cmp = strcmp(id, racine->id);
     if (cmp < 0)
-        racine->gauche = inserer_noeud_avl(racine->gauche, id, ptr_noeud);
+        racine->gauche = avl_insertion(racine->gauche, id, ptr_noeud);
     else if (cmp > 0)
-        racine->droite = inserer_noeud_avl(racine->droite, id, ptr_noeud);
+        racine->droite = avl_insertion(racine->droite, id, ptr_noeud);
     else
+        // Les doublons ne sont pas autorisés
         return racine;
 
-    racine->hauteur = 1 + max_int(hauteur_avl(racine->gauche), hauteur_avl(racine->droite));
-    int eq = facteur_equilibre_avl(racine);
+    // Mise à jour de la hauteur du nœud courant
+    racine->hauteur = 1 + max_val(
+        obtenir_hauteur(racine->gauche),
+        obtenir_hauteur(racine->droite)
+    );
 
-    // ÉQUILIBRAGE avec strcmp
-    if (eq > 1 && strcmp(id, racine->gauche->id) < 0) return rotation_droite_avl(racine);
-    if (eq < -1 && strcmp(id, racine->droite->id) > 0) return rotation_gauche_avl(racine);
-    if (eq > 1 && strcmp(id, racine->gauche->id) > 0) {
-        racine->gauche = rotation_gauche_avl(racine->gauche);
-        return rotation_droite_avl(racine);
+    // Calcul du facteur d’équilibre
+    int balance = obtenir_equilibre(racine);
+
+    // Cas Gauche-Gauche
+    if (balance > 1 && strcmp(id, racine->gauche->id) < 0)
+        return rotation_droite(racine);
+
+    // Cas Droite-Droite
+    if (balance < -1 && strcmp(id, racine->droite->id) > 0)
+        return rotation_gauche(racine);
+
+    // Cas Gauche-Droite
+    if (balance > 1 && strcmp(id, racine->gauche->id) > 0) {
+        racine->gauche = rotation_gauche(racine->gauche);
+        return rotation_droite(racine);
     }
-    if (eq < -1 && strcmp(id, racine->droite->id) < 0) {
-        racine->droite = rotation_droite_avl(racine->droite);
-        return rotation_gauche_avl(racine);
+
+    // Cas Droite-Gauche
+    if (balance < -1 && strcmp(id, racine->droite->id) < 0) {
+        racine->droite = rotation_droite(racine->droite);
+        return rotation_gauche(racine);
     }
+
+    // Nœud équilibré
     return racine;
 }
-// Pour reseau.c qui cherche "avl_recherche"
-AVLNode* avl_recherche(AVLNode* r, const char* id) {
-    if (r == NULL) return NULL;
-    int cmp = strcmp(id, r->id);
-    if (cmp == 0) return r;
-    if (cmp < 0) return avl_recherche(r->gauche, id);
-    return avl_recherche(r->droite, id);
-}
 
-// Pour reseau.c qui cherche "avl_insertion"
-AVLNode* avl_insertion(AVLNode* r, const char* id, void* ptr) {
-    return inserer_noeud_avl(r, id, ptr); 
-}
-
-// Pour calcul_fuites.c qui cherche "avl_search"
-AVLNode* avl_search(AVLNode* r, const char* id) {
-    return avl_recherche(r, id);
-}
-
-// Pour main.c qui cherche "avl_liberer" à la ligne 104
-void avl_liberer(AVLNode* r) {
-    liberer_avl(r);
-}
-
-// 6. Libération
-void liberer_avl(AVLNode* racine) {
-    if (racine == NULL) return;
+// Libération complète de la mémoire de l’arbre AVL
+void liberer_avl(NoeudAVL* racine) {
+    if (!racine) return;
     liberer_avl(racine->gauche);
     liberer_avl(racine->droite);
     free(racine);
