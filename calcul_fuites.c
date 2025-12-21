@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include "calcul_fuites.h"
 
+// Fonction récursive qui parcourt le réseau à partir d’un nœud
+// volume_entree : volume d’eau arrivant dans ce nœud
 double parcourir(Noeud* n, double volume_entree)
 {
+    // Cas d’arrêt : nœud nul ou plus de volume à transmettre
     if (!n || volume_entree <= 0.0)
         return 0.0;
 
-    // Compter les enfants
+    // Comptage du nombre d’enfants du nœud courant
     int nb = 0;
     ChildNode* c = n->enfants;
     while (c) {
@@ -14,228 +17,86 @@ double parcourir(Noeud* n, double volume_entree)
         c = c->suivant;
     }
 
+    // S’il n’y a pas d’enfants, c’est un usager final :
+    // il ne génère pas de pertes supplémentaires
     if (nb == 0)
-        return 0.0; // un usager final ne perd rien par lui-même
-
-    double pertes_totales = 0.0;
-    double volume_par_enfant = volume_entree / nb;
-
-    // Recalcul sur chaque enfant
-    c = n->enfants;
-    while (c) {
-        Noeud* enfant = c->enfant;
-
-        double fuite_pct = enfant->fuite;
-        if (fuite_pct < 0) fuite_pct = 0;
-        if (fuite_pct > 100) fuite_pct = 100;
-
-        // Perte sur ce tronçon
-        double perte = volume_par_enfant * (fuite_pct / 100.0);
-        double volume_sortie = volume_par_enfant - perte;
-
-        pertes_totales += perte;
-
-        // Propagation récursive
-        pertes_totales += parcourir(enfant, volume_sortie);
-
-        c = c->suivant;
-    }
-
-    return pertes_totales;
-}
-
-//Fonction principale : calcul des fuites pour une usine
-double calculer_fuites_usine(AVLNode* racine, const char* id_usine)
-{
-    if (!racine) return -1.0;
-
-    Noeud* n = NULL;
-
-    if (id_usine) {
-        // Chercher le nœud correspondant à l'usine
-        AVLNode* n_avl = avl_search(racine, id_usine);
-        if (!n_avl) return -1.0; // Usine non trouvée
-        n = n_avl->ptr_noeud;
-    } else {
-        // Aucun id fourni : utiliser la racine
-        n = racine->ptr_noeud;
-    }
-
-    double volume_entree = n->volume;
-    double pertes = parcourir(n, volume_entree);
-
-    return pertes / 1000.0; // Conversion en millions de m³
-}
-
-// Fonction pour écrire ou ajouter les résultats dans un fichier .dat
-void sauvegarder_fuites(const char* id_usine, double pertes)
-{
-    FILE* f = fopen("fuites.dat", "a");
-    if (!f) {
-        perror("Erreur ouverture fichier fuites.dat");
-        return;
-    }
-
-    fprintf(f, "%s;%.3f M.m3\n", id_usine, pertes);
-    fclose(f);
-}#include <stdio.h>
-#include "calcul_fuites.h"
-
-double parcourir(Noeud* n, double volume_entree)
-{
-    if (!n || volume_entree <= 0.0)
         return 0.0;
 
-    // Compter les enfants
-    int nb = 0;
-    ChildNode* c = n->enfants;
-    while (c) {
-        nb++;
-        c = c->suivant;
-    }
-
-    if (nb == 0)
-        return 0.0; // un usager final ne perd rien par lui-même
-
     double pertes_totales = 0.0;
+
+    // Répartition du volume entrant équitablement entre les enfants
     double volume_par_enfant = volume_entree / nb;
 
-    // Recalcul sur chaque enfant
+    // Parcours de chaque enfant
     c = n->enfants;
     while (c) {
         Noeud* enfant = c->enfant;
 
+        // Récupération et sécurisation du pourcentage de fuite
         double fuite_pct = enfant->fuite;
         if (fuite_pct < 0) fuite_pct = 0;
         if (fuite_pct > 100) fuite_pct = 100;
 
-        // Perte sur ce tronçon
+        // Calcul de la perte sur ce tronçon
         double perte = volume_par_enfant * (fuite_pct / 100.0);
+
+        // Volume restant après la fuite
         double volume_sortie = volume_par_enfant - perte;
 
+        // Ajout de la perte locale
         pertes_totales += perte;
 
-        // Propagation récursive
+        // Propagation récursive vers les enfants
         pertes_totales += parcourir(enfant, volume_sortie);
 
         c = c->suivant;
     }
 
+    // Retour du total des pertes calculées pour ce sous-réseau
     return pertes_totales;
 }
 
-//Fonction principale : calcul des fuites pour une usine
-double calculer_fuites_usine(AVLNode* racine, const char* id_usine)
+// Fonction principale : calcule les fuites totales pour une usine donnée
+double calculer_fuites_usine(NoeudAVL* racine, const char* id_usine)
 {
+    // Arbre AVL vide
     if (!racine) return -1.0;
 
     Noeud* n = NULL;
 
     if (id_usine) {
-        // Chercher le nœud correspondant à l'usine
-        AVLNode* n_avl = avl_search(racine, id_usine);
+        // Recherche de l’usine dans l’AVL à partir de son identifiant
+        NoeudAVL* n_avl = avl_recherche(racine, id_usine);
         if (!n_avl) return -1.0; // Usine non trouvée
         n = n_avl->ptr_noeud;
     } else {
-        // Aucun id fourni : utiliser la racine
+        // Si aucun identifiant n’est fourni, on utilise la racine
         n = racine->ptr_noeud;
     }
 
+    // Volume total entrant dans l’usine
     double volume_entree = n->volume;
+
+    // Calcul récursif des pertes
     double pertes = parcourir(n, volume_entree);
 
-    return pertes / 1000.0; // Conversion en millions de m³
+    // Conversion en millions de mètres cubes
+    return pertes / 1000.0;
 }
 
-// Fonction pour écrire ou ajouter les résultats dans un fichier .dat
+// Fonction pour sauvegarder les résultats des fuites dans un fichier
 void sauvegarder_fuites(const char* id_usine, double pertes)
 {
+    // Ouverture du fichier en mode ajout
     FILE* f = fopen("fuites.dat", "a");
     if (!f) {
         perror("Erreur ouverture fichier fuites.dat");
         return;
     }
 
+    // Écriture de l’identifiant de l’usine et des pertes associées
     fprintf(f, "%s;%.3f M.m3\n", id_usine, pertes);
-    fclose(f);
-}#include <stdio.h>
-#include "calcul_fuites.h"
 
-double parcourir(Noeud* n, double volume_entree)
-{
-    if (!n || volume_entree <= 0.0)
-        return 0.0;
-
-    // Compter les enfants
-    int nb = 0;
-    ChildNode* c = n->enfants;
-    while (c) {
-        nb++;
-        c = c->suivant;
-    }
-
-    if (nb == 0)
-        return 0.0; // un usager final ne perd rien par lui-même
-
-    double pertes_totales = 0.0;
-    double volume_par_enfant = volume_entree / nb;
-
-    // Recalcul sur chaque enfant
-    c = n->enfants;
-    while (c) {
-        Noeud* enfant = c->enfant;
-
-        double fuite_pct = enfant->fuite;
-        if (fuite_pct < 0) fuite_pct = 0;
-        if (fuite_pct > 100) fuite_pct = 100;
-
-        // Perte sur ce tronçon
-        double perte = volume_par_enfant * (fuite_pct / 100.0);
-        double volume_sortie = volume_par_enfant - perte;
-
-        pertes_totales += perte;
-
-        // Propagation récursive
-        pertes_totales += parcourir(enfant, volume_sortie);
-
-        c = c->suivant;
-    }
-
-    return pertes_totales;
-}
-
-//Fonction principale : calcul des fuites pour une usine
-double calculer_fuites_usine(AVLNode* racine, const char* id_usine)
-{
-    if (!racine) return -1.0;
-
-    Noeud* n = NULL;
-
-    if (id_usine) {
-        // Chercher le nœud correspondant à l'usine
-        AVLNode* n_avl = avl_search(racine, id_usine);
-        if (!n_avl) return -1.0; // Usine non trouvée
-        n = n_avl->ptr_noeud;
-    } else {
-        // Aucun id fourni : utiliser la racine
-        n = racine->ptr_noeud;
-    }
-
-    double volume_entree = n->volume;
-    double pertes = parcourir(n, volume_entree);
-
-    return pertes / 1000.0; // Conversion en millions de m³
-}
-
-// Fonction pour écrire ou ajouter les résultats dans un fichier .dat
-void sauvegarder_fuites(const char* id_usine, double pertes)
-{
-    FILE* f = fopen("fuites.dat", "a");
-    if (!f) {
-        perror("Erreur ouverture fichier fuites.dat");
-        return;
-    }
-
-    fprintf(f, "%s;%.3f M.m3\n", id_usine, pertes);
+    // Fermeture du fichier
     fclose(f);
 }
