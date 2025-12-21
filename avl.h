@@ -4,7 +4,7 @@
 #include "reseaau.h" // Inclusion nécessaire pour que le type Noeud soit reconnu
 
 // Structure d’un nœud de l’arbre AVL
-typedef struct NoeudAVL {
+typedef struct NoeudAVL   {
     char id[100];              // Identifiant unique du nœud (clé de l’AVL)
     Noeud* ptr_noeud;          // Pointeur vers le nœud du réseau associé
     struct NoeudAVL *gauche;   // Fils gauche dans l’arbre AVL
