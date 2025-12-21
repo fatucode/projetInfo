@@ -1,42 +1,41 @@
 #ifndef AVL_H
 #define AVL_H
 
-#include "reseaau.h"
+#include "reseaau.h" // Inclusion nécessaire pour que le type Noeud soit reconnu
 
-/* ----------------------------------------------------
-   Structure d’un nœud AVL
----------------------------------------------------- */
-typedef struct AVLNode {
-    char id[MAX_ID];
-    Noeud* ptr_noeud;
+// Structure d’un nœud de l’arbre AVL
+typedef struct NoeudAVL {
+    char id[100];              // Identifiant unique du nœud (clé de l’AVL)
+    Noeud* ptr_noeud;          // Pointeur vers le nœud du réseau associé
+    struct NoeudAVL *gauche;   // Fils gauche dans l’arbre AVL
+    struct NoeudAVL *droite;   // Fils droit dans l’arbre AVL
+    int hauteur;               // Hauteur du nœud (utilisée pour l’équilibrage AVL)
+} NoeudAVL;
 
-    struct AVLNode* gauche;
-    struct AVLNode* droite;
+// -------- Prototypes des fonctions AVL --------
 
-    int hauteur;
-} AVLNode;
+// Retourne la hauteur d’un nœud AVL
+int obtenir_hauteur(NoeudAVL* n);
 
-/* ----------------------------------------------------
-   Fonctions utilitaires
----------------------------------------------------- */
-int hauteur(AVLNode* n);
-int max(int a, int b);
+// Retourne le maximum entre deux entiers
+int max_val(int a, int b);
 
-/* ----------------------------------------------------
-   Recherche / insertion
----------------------------------------------------- */
-AVLNode* avl_recherche(AVLNode* racine, const char* id);
-AVLNode* inserer_noeud_avl(AVLNode* racine, const char* id, void* ptr_noeud);
+// Effectue une rotation droite pour rééquilibrer l’arbre
+NoeudAVL* rotation_droite(NoeudAVL* y);
 
-/* ----------------------------------------------------
-   Rotations AVL
----------------------------------------------------- */
-AVLNode* rotation_gauche(AVLNode* x);
-AVLNode* rotation_droite(AVLNode* y);
-int facteur_equilibre(AVLNode* n);
+// Effectue une rotation gauche pour rééquilibrer l’arbre
+NoeudAVL* rotation_gauche(NoeudAVL* x);
 
-/* ----------------------------------------------------
-   Libération mémoire
----------------------------------------------------- */
-void liberer_avl(AVLNode* racine);
+// Calcule le facteur d’équilibre d’un nœud AVL
+int obtenir_equilibre(NoeudAVL* n);
+
+// Recherche un nœud dans l’AVL à partir de son identifiant
+NoeudAVL* avl_recherche(NoeudAVL* racine, const char* id);
+
+// Insère un nouveau nœud dans l’AVL en maintenant l’équilibrage
+NoeudAVL* avl_insertion(NoeudAVL* racine, const char* id, Noeud* ptr_noeud);
+
+// Libère récursivement la mémoire de l’arbre AVL
+void liberer_avl(NoeudAVL* racine);
+
 #endif
