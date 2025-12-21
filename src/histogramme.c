@@ -2,35 +2,36 @@
 #include <stdlib.h>
 #include "histogramme.h"
 
-/*
- * Génère un fichier CSV contenant les données pour l'histogramme
- * - racine : AVL contenant toutes les usines
- * - nom_fichier : nom du fichier CSV de sortie
- * - mode : HISTO_MAX, HISTO_SRC, HISTO_REAL ou HISTO_ALL
- *
- * Retour :
- *  0  -> succès
- * -1  -> erreur (fichier non ouvert)
- */
+// Génère un fichier CSV à partir de l'AVL des usines
+// Ce fichier servira ensuite à tracer l'histogramme
 int generer_histogramme(AvlUsine* racine,
                         const char* nom_fichier,
                         int mode)
 {
+    // Ouverture du fichier CSV en écriture
     FILE* out = fopen(nom_fichier, "w");
     if (out == NULL) {
+        // Erreur si le fichier ne peut pas être ouvert
         return -1;
     }
 
-    /* Écriture de l'en-tête du CSV */
+    // Écriture de la première ligne (en-tête du CSV)
+    // Le contenu dépend du mode choisi
     if (mode == HISTO_ALL) {
+        // Cas où on affiche toutes les valeurs
         fprintf(out, "id;max;src;real\n");
     } else {
+        // Cas où on affiche une seule valeur
         fprintf(out, "id;valeur\n");
     }
 
-    /* Parcours de l'AVL en ordre inverse (Z -> A) */
+    // Parcours de l'AVL en ordre inverse (de Z vers A)
+    // Les données sont écrites directement dans le fichier
     parcours_inverse(racine, out, mode);
 
+    // Fermeture du fichier
     fclose(out);
+
+    // Succès
     return 0;
 }
