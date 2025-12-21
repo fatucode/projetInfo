@@ -1,0 +1,117 @@
+# ============================================================
+# CONFIGURATION GÉNÉRALE DU TERMINAL DE SORTIE
+# ============================================================
+
+# Utilisation du terminal PNG (le plus compatible sur toutes les machines)
+# Taille large pour éviter que les labels et titres soient coupés
+# Police Arial en taille 12
+set terminal png size 1800,900 font "Arial,12"
+
+# Fichier de sortie (nom fourni via une variable externe)
+set output out_file
+
+
+# ============================================================
+# PARAMÈTRES DE LECTURE DES DONNÉES
+# ============================================================
+
+# Définition du séparateur de colonnes : point-virgule UNIQUEMENT
+# Indispensable car les fichiers .dat sont en format CSV avec ;
+set datafile separator ";"
+
+# Valeur représentant une donnée manquante
+set datafile missing "-"
+
+# Forcer l'utilisation du point comme séparateur décimal
+# Évite les problèmes avec les locales françaises (virgule)
+set decimal locale "C"
+
+
+# ============================================================
+# MARGES DU GRAPHIQUE
+# ============================================================
+
+# Marges très larges pour éviter les coupures de texte
+# Bas : noms des usines longs
+set bmargin 25
+
+# Haut : titre principal
+set tmargin 10
+
+# Gauche : grandes valeurs numériques (ex: millions)
+set lmargin 20
+
+# Droite : marge standard
+set rmargin 5
+
+
+# ============================================================
+# TITRE ET AXES
+# ============================================================
+
+# Titre principal du graphique
+# Police plus grande et léger décalage vers le haut
+set title main_title font "Arial,24" offset 0,2
+
+# Label de l'axe Y avec l'unité dynamique
+# Décalé vers la gauche pour plus de lisibilité
+set ylabel "Volume (" . unite . ")" font "Arial,14" offset -4,0
+
+# Affichage de la grille horizontale
+set grid ytics
+
+
+# ============================================================
+# STYLE DES BARRES
+# ============================================================
+
+# Barres pleines avec légère transparence et bordure automatique
+set style fill solid 0.7 border -1
+
+# Largeur des barres
+set boxwidth 0.8
+
+# Ajustement automatique de l'axe Y
+set yrange [*:*]
+
+# Ajout d'un espace en bas du graphique pour les labels inclinés
+set offsets 0, 0, graph 0.2, 0 
+
+
+# ============================================================
+# GESTION DES LABELS DE L'AXE X (NOMS DES USINES)
+# ============================================================
+
+# Rotation des labels pour éviter le chevauchement
+# Décalage vers le bas pour créer de l'espace sous l'axe
+set xtics rotate by -45 right font "Arial,10" offset 0,-4
+
+
+# ============================================================
+# DESSIN DU GRAPHIQUE
+# ============================================================
+
+# Vérifie que le fichier de données existe et n'est pas vide
+# Si oui : affichage du graphique
+if (exists("data_file") && system("[ -s ".data_file." ] && echo 1 || echo 0") + 0) {
+
+    # Colonne 1 : noms des usines (axe X)
+    # Colonne 2 : valeurs numériques (axe Y)
+    # Affichage sous forme de barres
+    plot data_file using 2:xtic(1) with boxes title main_title lc rgb "#4682B4"
+
+} else {
+
+    # Si aucune donnée n'est disponible
+    # Affichage d'un message au centre du graphique
+    set label "Aucune donnée" at screen 0.5, 0.5 center
+    plot NaN notitle
+}
+
+
+# ============================================================
+# FERMETURE DU FICHIER DE SORTIE
+# ============================================================
+
+# Obligatoire, notamment sous Windows, pour finaliser l'écriture du PNG
+set output
