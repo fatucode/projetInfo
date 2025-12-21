@@ -1,12 +1,17 @@
-# Nom de l'exécutable final
+# Nom de l'exécutable final généré
 EXEC = wildwater
 
-# Compilateur et options
+# Compilateur utilisé
 CC = gcc
+
+# Options de compilation :
+# -Wall -Wextra : affiche les warnings
+# -std=c11      : norme C utilisée
+# -g            : informations de debug
 CFLAGS = -Wall -Wextra -std=c11 -g
 
-# Liste des fichiers sources (.c)
-# On inclut tous les modules : Réseau, Usine, CSV, et le Main
+# Liste de tous les fichiers source du projet
+# (réseau, AVL, usines, CSV, calculs, histogramme, main)
 SRCS = main.c \
        reseau.c \
        avl.c \
@@ -16,29 +21,30 @@ SRCS = main.c \
        usine.c \
        csv_reader.c
 
-# Transformation de la liste des .c en .o (fichiers objets)
+# Transformation automatique des .c en .o
 OBJS = $(SRCS:.c=.o)
 
-# Règle principale (par défaut)
+# Règle par défaut : compilation complète
 all: $(EXEC)
 
-# Création de l'exécutable à partir des fichiers objets
+# Création de l'exécutable final à partir des fichiers objets
 $(EXEC): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $(EXEC)
 
-# Règle pour compiler chaque fichier .c en .o
+# Compilation d'un fichier .c en fichier objet .o
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Nettoyage des fichiers temporaires
+# Supprime uniquement les fichiers objets
 clean:
 	rm -f $(OBJS)
 
-# Nettoyage complet (objets + exécutable)
+# Supprime les fichiers objets + l'exécutable
 fclean: clean
 	rm -f $(EXEC)
 
-# Re-compiler de zéro
+# Recompile tout proprement
 re: fclean all
 
+# Indique que ces règles ne correspondent pas à des fichiers
 .PHONY: all clean fclean re
